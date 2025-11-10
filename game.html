@@ -1,0 +1,571 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>RPS Arcade Deluxe — vFinal</title>
+<style>
+  /* =========================
+     THEME & LAYOUT
+     ========================= */
+  :root{
+    --neon-bg1: #071428;
+    --neon-bg2: #001a2e;
+    --neon-accent: #00e5ff;
+    --modern-grad-a: #ff9a9e;
+    --modern-grad-b: #fecfef;
+    --card-bg: rgba(255,255,255,0.02);
+    --text-light: #e6f1ff;
+    --text-dark: #111;
+  }
+
+  html.neon { --bgA: var(--neon-bg1); --bgB: var(--neon-bg2); --accent: var(--neon-accent); --text: var(--text-light); --mode: 'neon'; }
+  html.modern { --bgA: #fff; --bgB: #ffeef6; --accent: #ff6a88; --text: var(--text-dark); --mode: 'modern'; }
+
+  *{box-sizing:border-box}
+  body{
+    margin:0; font-family: Inter, Poppins, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    background: linear-gradient(135deg, var(--bgA), var(--bgB));
+    color: var(--text);
+    min-height:100vh; display:flex; align-items:center; justify-content:center; padding:20px;
+    transition: background 400ms ease, color 400ms ease;
+    overflow:hidden;
+  }
+
+  .card{
+    width:100%; max-width:980px; border-radius:14px; padding:18px; position:relative; overflow:visible;
+    background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.02));
+    box-shadow: 0 12px 48px rgba(0,0,0,0.35);
+  }
+
+  .top { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; }
+  .brand { font-weight:800; font-size:1.1rem; display:flex; gap:10px; align-items:center; }
+  .controls { display:flex; gap:8px; align-items:center; }
+
+  select, button { background:transparent; border:1px solid rgba(255,255,255,0.06); padding:8px 10px; border-radius:8px; color:var(--text); cursor:pointer; }
+  .btn-primary { background:var(--accent); color:#fff; border:none; padding:8px 12px; border-radius:8px; cursor:pointer; }
+
+  .main { display:flex; gap:18px; margin-top:14px; flex-wrap:wrap; align-items:flex-start; }
+  .arena { flex:1; min-width:300px; padding:18px; border-radius:12px; text-align:center; }
+  .side { width:300px; min-width:240px; padding:14px; border-radius:12px; }
+
+  h2 { margin:0 0 8px 0; font-size:1rem; font-weight:800; }
+
+  /* hands */
+  .hands { display:flex; justify-content:center; gap:40px; align-items:center; margin-top:8px; height:120px; }
+  .hand { width:120px; height:120px; border-radius:14px; display:flex; align-items:center; justify-content:center; font-size:56px; background:var(--card-bg); box-shadow:0 10px 30px rgba(0,0,0,0.35); transition:transform 240ms; }
+  .hand.animate { animation:handShake .9s ease-in-out 1; }
+  @keyframes handShake { 0%{transform:translateY(0)}25%{transform:translateY(-16px)}50%{transform:translateY(16px)}75%{transform:translateY(-8px)}100%{transform:translateY(0)} }
+
+  /* choices */
+  .choices { display:flex; justify-content:center; gap:12px; margin-top:12px; flex-wrap:wrap; }
+  .choice { min-width:110px; padding:12px 14px; border-radius:10px; font-weight:800; cursor:pointer; border:2px solid rgba(255,255,255,0.04); background:rgba(255,255,255,0.01); }
+  .choice:active { transform:scale(.98) }
+
+  .message { margin-top:12px; font-weight:800; min-height:36px; font-size:1.03rem; }
+  .scoreRow { display:flex; gap:12px; justify-content:center; margin-top:12px; }
+  .scoreBox { background: rgba(255,255,255,0.02); padding:8px 12px; border-radius:8px; min-width:84px; text-align:center; }
+  .pulse { animation:pulse .36s ease }
+  @keyframes pulse { 0%{transform:scale(1)}50%{transform:scale(1.15)}100%{transform:scale(1)} }
+
+  /* confetti canvas & subtle background overlay */
+  #confetti { position:fixed; inset:0; pointer-events:none; z-index:40 }
+
+  /* subtle animated background elements (grid + gradient flow) */
+  .bg-subtle { position:absolute; inset:0; z-index:0; pointer-events:none; overflow:hidden; mix-blend-mode:overlay; }
+  .bg-grid { position:absolute; inset:0; opacity:.12; background-size: 40px 40px; background-image: linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px); transform-origin:center; animation: gridMove 18s linear infinite; }
+  @keyframes gridMove { 0%{transform:translateY(0) rotate(0deg)} 100%{transform:translateY(-40px) rotate(1deg)} }
+  .bg-gradientFlow { position:absolute; inset:-50% ; background: linear-gradient(120deg, rgba(255,255,255,0.02), rgba(255,255,255,0.005) 40%, rgba(0,0,0,0)); transform: rotate(15deg); animation: flow 10s ease-in-out infinite alternate; mix-blend-mode:soft-light; opacity:.12; }
+  @keyframes flow { 0%{transform:translateX(-10%) rotate(10deg)} 100%{transform:translateX(10%) rotate(-10deg)} }
+
+  /* trophy overlay full-screen */
+  .overlay {
+    position:fixed; inset:0; background:rgba(0,0,0,0.6); display:flex; align-items:center; justify-content:center; z-index:60; opacity:0; pointer-events:none; transition:opacity .25s;
+  }
+  .overlay.show { opacity:1; pointer-events:auto; }
+  .overlay .panel { background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.02)); border-radius:16px; padding:26px; text-align:center; width:90%; max-width:520px; box-shadow:0 18px 60px rgba(0,0,0,0.6); }
+  .overlay h1 { font-size:2rem; margin-bottom:8px }
+  .overlay p { opacity:.9; margin-bottom:14px }
+
+  .playAgain { background:var(--accent); color:#fff; border:none; padding:12px 20px; border-radius:10px; font-weight:800; cursor:pointer; }
+
+  /* responsive */
+  @media (max-width:880px){ .main{flex-direction:column-reverse} .side{width:100%} .hand{width:88px;height:88px;font-size:36px} }
+</style>
+</head>
+<body>
+  <div class="card" role="main" aria-label="RPS Arcade Deluxe">
+    <div class="top" style="z-index:20">
+      <div class="brand">🎮 RPS Arcade Deluxe (Subtle BG)</div>
+      <div class="controls">
+        <select id="themeSelect" title="Theme">
+          <option value="neon">Neon Dark</option>
+          <option value="modern">Modern Gradient</option>
+        </select>
+        <select id="difficulty" title="Difficulty">
+          <option value="easy">Easy</option>
+          <option value="normal" selected>Normal</option>
+          <option value="hard">Hard</option>
+        </select>
+        <button id="musicToggle" title="Toggle Music">🔊</button>
+      </div>
+    </div>
+
+    <div class="main" style="position:relative; z-index:20;">
+      <div class="arena">
+        <h2>Arcade Arena</h2>
+
+        <div class="hands">
+          <div id="playerHand" class="hand">🤜</div>
+          <div id="botHand" class="hand">🤛</div>
+        </div>
+
+        <div id="countdown" style="margin-top:8px;font-weight:800;min-height:26px"></div>
+
+        <div class="choices" id="choices">
+          <button class="choice" data-choice="rock">✊ Rock</button>
+          <button class="choice" data-choice="paper">✋ Paper</button>
+          <button class="choice" data-choice="scissors">✌️ Scissors</button>
+        </div>
+
+        <div class="message" id="message" style="margin-top:12px">Pick a difficulty to start (top) — or press 1 / 2 / 3</div>
+
+        <div class="scoreRow">
+          <div class="scoreBox">You<br/><strong id="youScore">0</strong></div>
+          <div class="scoreBox">Bot<br/><strong id="botScore">0</strong></div>
+          <div class="scoreBox">Decisive Rounds<br/><strong id="rounds">0</strong></div>
+        </div>
+
+        <div style="display:flex;gap:8px;justify-content:center;margin-top:12px">
+          <button id="resetMatch" class="btn-primary">Reset Match</button>
+          <button id="resetAll">Reset All</button>
+        </div>
+
+        <div style="margin-top:10px;text-align:center;color:var(--accent);font-weight:800"><span id="comboText"></span></div>
+      </div>
+
+      <aside class="side">
+        <h2>Info & Controls</h2>
+        <div style="margin-top:8px">Mode: <strong id="modeLabel">Best of 5</strong></div>
+        <div style="margin-top:8px">AI Difficulty: <strong id="aiLabel">Normal</strong></div>
+
+        <hr style="margin:10px 0;border:none;height:1px;background:rgba(255,255,255,0.03)">
+
+        <div>Keys: 1 / 2 / 3 => Rock / Paper / Scissors</div>
+        <div style="margin-top:6px">Swipe: left=rock, up=paper, right=scissors</div>
+
+        <hr style="margin:10px 0;border:none;height:1px;background:rgba(255,255,255,0.03)">
+
+        <button id="toggleMode">Toggle Best of 5 / Infinite</button>
+      </aside>
+    </div>
+
+    <!-- subtle animated background overlays -->
+    <div class="bg-subtle" aria-hidden="true">
+      <div class="bg-grid" id="bgGrid"></div>
+      <div class="bg-gradientFlow" id="bgFlow"></div>
+    </div>
+
+    <!-- confetti canvas -->
+    <canvas id="confetti"></canvas>
+
+    <!-- full-screen overlay trophy -->
+    <div class="overlay" id="overlay">
+      <div class="panel">
+        <h1 id="overlayTitle">Champion!</h1>
+        <p id="overlaySub">You won the match</p>
+        <div style="display:flex;gap:12px;justify-content:center;margin-top:10px">
+          <button id="playAgain" class="playAgain">Play Again</button>
+          <button id="closeOverlay">Close</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- initial modal to choose difficulty -->
+    <div class="menu" id="startMenu">
+      <div class="panel">
+        <h2>Start — choose difficulty</h2>
+        <div style="display:flex;gap:8px;justify-content:center;margin-top:12px">
+          <button data-diff="easy">Easy</button>
+          <button data-diff="normal">Normal</button>
+          <button data-diff="hard">Hard</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Audio (Option A - free links) -->
+  <audio id="s_click" src="https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg"></audio>
+  <audio id="s_tick" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg"></audio>
+  <audio id="s_win" src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_392c922f16.mp3?filename=win-1-45735.mp3"></audio>
+  <audio id="s_lose" src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_3c76da24db.mp3?filename=lose-1-45733.mp3"></audio>
+  <audio id="s_draw" src="https://actions.google.com/sounds/v1/cartoon/concussive_hit_guitar_boing.ogg"></audio>
+  <audio id="s_bg" src="https://cdn.pixabay.com/download/audio/2021/12/16/audio_9d2b4d6d4b.mp3?filename=arcade-loop-13686.mp3"></audio>
+
+<script>
+/* =========================
+   Final Arcade Deluxe JS (vFinal)
+   - subtle bg animations (CSS + small JS for grid opacity based on theme)
+   - countdown & hand animation
+   - smart AI difficulty
+   - draw handling (does NOT count as a decisive round)
+   - confetti fade-out and full-screen overlay for final winner
+   ========================= */
+
+(function(){
+  // Elements
+  const startMenu = document.getElementById('startMenu');
+  const startButtons = startMenu.querySelectorAll('button[data-diff]');
+  const themeSelect = document.getElementById('themeSelect');
+  const difficultySelect = document.getElementById('difficulty');
+  const choices = document.querySelectorAll('.choice');
+  const playerHand = document.getElementById('playerHand');
+  const botHand = document.getElementById('botHand');
+  const messageEl = document.getElementById('message');
+  const youScoreEl = document.getElementById('youScore');
+  const botScoreEl = document.getElementById('botScore');
+  const roundsEl = document.getElementById('rounds');
+  const comboText = document.getElementById('comboText');
+  const confettiCanvas = document.getElementById('confetti');
+  const overlay = document.getElementById('overlay');
+  const overlayTitle = document.getElementById('overlayTitle');
+  const overlaySub = document.getElementById('overlaySub');
+  const playAgainBtn = document.getElementById('playAgain');
+  const closeOverlayBtn = document.getElementById('closeOverlay');
+  const toggleModeBtn = document.getElementById('toggleMode');
+  const modeLabel = document.getElementById('modeLabel');
+  const aiLabel = document.getElementById('aiLabel');
+  const musicToggle = document.getElementById('musicToggle');
+  const resetMatchBtn = document.getElementById('resetMatch');
+  const resetAllBtn = document.getElementById('resetAll');
+  const countdownEl = document.getElementById('countdown');
+  const bgGrid = document.getElementById('bgGrid');
+  const bgFlow = document.getElementById('bgFlow');
+
+  // Audio
+  const s_click = document.getElementById('s_click');
+  const s_tick = document.getElementById('s_tick');
+  const s_win = document.getElementById('s_win');
+  const s_lose = document.getElementById('s_lose');
+  const s_draw = document.getElementById('s_draw');
+  const s_bg = document.getElementById('s_bg');
+  s_bg.loop = true;
+
+  // Canvas setup
+  function fitCanvas(){ confettiCanvas.width = window.innerWidth; confettiCanvas.height = window.innerHeight; }
+  fitCanvas(); window.addEventListener('resize', fitCanvas);
+  const ctx = confettiCanvas.getContext('2d');
+
+  // State
+  const state = {
+    you:0, bot:0, rounds:0, combo:0, history:[], mode:'bestof5', difficulty:'normal', theme: localStorage.getItem('rps_theme') || 'neon', music: JSON.parse(localStorage.getItem('rps_music')||'false'), inRound:false
+  };
+
+  // Apply initial theme
+  function applyTheme(t){
+    document.documentElement.className = t === 'modern' ? 'modern' : 'neon';
+    themeSelect.value = t;
+    localStorage.setItem('rps_theme', t);
+    // subtle background alpha tweak
+    if(t === 'neon'){ bgGrid.style.opacity = .14; bgFlow.style.opacity = .08; }
+    else { bgGrid.style.opacity = .02; bgFlow.style.opacity = .12; }
+  }
+  applyTheme(state.theme);
+
+  // Music
+  function setMusic(on){
+    state.music = !!on;
+    if(state.music) s_bg.play().catch(()=>{});
+    else s_bg.pause();
+    localStorage.setItem('rps_music', JSON.stringify(state.music));
+    musicToggle.textContent = state.music ? '🔇' : '🔊';
+  }
+  setMusic(state.music);
+
+  // helper: play safe
+  function play(snd){ try{ snd.currentTime = 0; snd.play().catch(()=>{}); }catch(e){} }
+
+  // AI helpers
+  function getRandomChoice(){ return ['rock','paper','scissors'][Math.floor(Math.random()*3)]; }
+  function getSmartChoice(){
+    const hist = state.history.slice(-6);
+    if(hist.length < 2) return getRandomChoice();
+    const counts = { rock:0, paper:0, scissors:0 };
+    hist.forEach(c => counts[c]++);
+    const max = Math.max(counts.rock, counts.paper, counts.scissors);
+    if(max === counts.rock) return 'paper';
+    if(max === counts.paper) return 'scissors';
+    return 'rock';
+  }
+  function chooseBot(){
+    if(state.difficulty === 'easy') return getRandomChoice();
+    if(state.difficulty === 'normal') return Math.random() < 0.6 ? getSmartChoice() : getRandomChoice();
+    return Math.random() < 0.85 ? getSmartChoice() : getRandomChoice();
+  }
+
+  // UI update
+  function updateUI(){
+    youScoreEl.textContent = state.you;
+    botScoreEl.textContent = state.bot;
+    roundsEl.textContent = state.rounds;
+    comboText.textContent = state.combo >= 3 ? `🔥 ${state.combo}-Win Streak!` : '';
+    modeLabel.textContent = state.mode === 'bestof5' ? 'Best of 5' : 'Infinite';
+    aiLabel.textContent = state.difficulty.charAt(0).toUpperCase() + state.difficulty.slice(1);
+  }
+  updateUI();
+
+  // confetti (fadeout)
+  let confettiAnim = null;
+  function launchConfetti(duration=1400){
+    cancelConfetti();
+    const W = confettiCanvas.width, H = confettiCanvas.height;
+    const parts = [];
+    for(let i=0;i<130;i++){
+      parts.push({ x: Math.random()*W, y: Math.random()*H - 80, r: Math.random()*6+3, c: `hsl(${Math.random()*360},90%,60%)`, d: Math.random()*1.6+0.8, vx: (Math.random()-0.5)*3, life:1 });
+    }
+    const start = performance.now();
+    function frame(now){
+      const t = now - start;
+      ctx.clearRect(0,0,W,H);
+      let alive = false;
+      for(const p of parts){
+        if(p.life > 0){
+          alive = true;
+          ctx.globalAlpha = p.life;
+          ctx.beginPath();
+          ctx.ellipse(p.x, p.y, p.r, p.r*0.7, 0, 0, Math.PI*2);
+          ctx.fillStyle = p.c;
+          ctx.fill();
+        }
+      }
+      ctx.globalAlpha = 1;
+      for(const p of parts){
+        p.x += p.vx;
+        p.y += p.d + Math.sin((t+p.x)/60)*0.4;
+        p.life -= 0.01;
+        if(p.y > H) p.y = 0;
+      }
+      if(alive && t < duration + 700) confettiAnim = requestAnimationFrame(frame);
+      else { ctx.clearRect(0,0,W,H); confettiAnim = null; }
+    }
+    confettiAnim = requestAnimationFrame(frame);
+  }
+  function cancelConfetti(){ if(confettiAnim) cancelAnimationFrame(confettiAnim); ctx.clearRect(0,0,confettiCanvas.width,confettiCanvas.height); confettiAnim = null; }
+
+  // trophy overlay
+  function showOverlay(winText, sub){
+    overlayTitle.textContent = winText;
+    overlaySub.textContent = sub || '';
+    overlay.classList.add('show');
+    // confetti and small flourish
+    launchConfetti(1800);
+  }
+  function hideOverlay(){ overlay.classList.remove('show'); cancelConfetti(); }
+
+  // flash
+  function flash(color){
+    const prev = document.body.style.background;
+    document.body.style.transition = 'background 120ms';
+    document.body.style.background = color;
+    setTimeout(()=>{ document.body.style.background = prev; }, 260);
+  }
+
+  // countdown & resolve round
+  const words = ['Rock','Paper','Scissors','Shoot!'];
+  function startRound(playerChoice){
+    if(state.inRound) return;
+    state.inRound = true;
+    // pre throw animation
+    playerHand.textContent = '🤜'; botHand.textContent = '🤛';
+    playerHand.classList.add('animate'); botHand.classList.add('animate');
+    let i = 0;
+    countdownEl.textContent = '';
+    messageEl.textContent = 'Get ready...';
+    const iv = setInterval(()=>{
+      countdownEl.textContent = words[i];
+      play(s_tick);
+      i++;
+      if(i >= words.length){
+        clearInterval(iv);
+        countdownEl.textContent = '';
+        setTimeout(()=>{
+          const botChoice = chooseBot();
+          resolveRound(playerChoice, botChoice);
+        }, 220);
+      }
+    }, 520);
+  }
+
+  function resolveRound(playerChoice, botChoice){
+    playerHand.classList.remove('animate'); botHand.classList.remove('animate');
+    playerHand.textContent = (playerChoice==='rock' ? '✊' : playerChoice==='paper' ? '✋' : '✌️');
+    botHand.textContent = (botChoice==='rock' ? '✊' : botChoice==='paper' ? '✋' : '✌️');
+
+    // determine outcome
+    let outcome = 'draw';
+    if(playerChoice === botChoice) outcome = 'draw';
+    else if((playerChoice==='rock' && botChoice==='scissors') || (playerChoice==='paper' && botChoice==='rock') || (playerChoice==='scissors' && botChoice==='paper')) outcome = 'win';
+    else outcome = 'lose';
+
+    // update history
+    state.history.push(playerChoice);
+    if(state.history.length > 80) state.history.shift();
+
+    // apply
+    if(outcome === 'draw'){
+      play(s_draw);
+      messageEl.textContent = `Draw — both chose ${playerChoice}`;
+      state.combo = 0;
+      flash('linear-gradient(135deg,#3498db60, rgba(0,0,0,0.06))');
+    } else if(outcome === 'win'){
+      play(s_win);
+      state.you++;
+      state.rounds++;
+      state.combo++;
+      messageEl.textContent = `You Win! ${playerChoice} beats ${botChoice}`;
+      flash('linear-gradient(135deg,#00c85360, rgba(0,0,0,0.06))');
+      launchConfetti(1400);
+      youScoreEl.classList.add('pulse'); setTimeout(()=> youScoreEl.classList.remove('pulse'),420);
+    } else {
+      play(s_lose);
+      state.bot++;
+      state.rounds++;
+      state.combo = 0;
+      messageEl.textContent = `You Lose — ${botChoice} beats ${playerChoice}`;
+      flash('linear-gradient(135deg,#ff174460, rgba(0,0,0,0.06))');
+      botScoreEl.classList.add('pulse'); setTimeout(()=> botScoreEl.classList.remove('pulse'),420);
+    }
+
+    // update UI
+    updateUI();
+
+    // check match end for best-of-5 (we count only decisive rounds: wins/losses)
+    const needed = state.mode === 'bestof5' ? 5 : Infinity;
+    setTimeout(()=> {
+      if(state.mode === 'bestof5' && state.rounds >= needed){
+        // decide winner
+        if(state.you > state.bot){
+          showOverlay('🏆 YOU WIN THE MATCH!', `Score ${state.you} — ${state.bot}`);
+        } else if(state.you < state.bot){
+          showOverlay('🤖 BOT WINS THE MATCH', `Score ${state.bot} — ${state.you}`);
+        } else {
+          showOverlay("😐 IT'S A TIE MATCH", `Score ${state.you} — ${state.bot}`);
+        }
+        // reset match after overlay shown; overlay's Play Again will reset fully
+      }
+      state.inRound = false;
+    }, 700);
+  }
+
+  // choice bindings
+  choices.forEach(btn => btn.addEventListener('click', ()=>{
+    if(state.inRound) return;
+    play(s_click);
+    const choice = btn.getAttribute('data-choice');
+    startRound(choice);
+  }));
+
+  // keyboard
+  window.addEventListener('keydown', (e)=>{
+    if(e.key === '1') choices[0].click();
+    if(e.key === '2') choices[1].click();
+    if(e.key === '3') choices[2].click();
+    if(e.key === 'm') setMusic(!state.music);
+  });
+
+  // swipe
+  let touchStart = null;
+  window.addEventListener('touchstart', (e)=> { touchStart = e.touches[0]; }, {passive:true});
+  window.addEventListener('touchend', (e)=> {
+    if(!touchStart) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - touchStart.clientX, dy = t.clientY - touchStart.clientY;
+    const ax = Math.abs(dx), ay = Math.abs(dy);
+    if(Math.max(ax,ay) < 40) { touchStart = null; return; }
+    if(ax > ay){
+      if(dx > 0) choices[2].click(); else choices[0].click();
+    } else {
+      if(dy < 0) choices[1].click();
+    }
+    touchStart = null;
+  }, {passive:true});
+
+  // toggle mode
+  toggleModeBtn.addEventListener('click', ()=>{
+    state.mode = state.mode === 'bestof5' ? 'infinite' : 'bestof5';
+    modeLabel.textContent = state.mode === 'bestof5' ? 'Best of 5' : 'Infinite';
+    // reset match variables so no confusion
+    state.you = 0; state.bot = 0; state.rounds = 0; state.combo = 0;
+    updateUI();
+  });
+
+  // theme
+  themeSelect.addEventListener('change', (e) => { applyTheme(e.target.value); state.theme = e.target.value; });
+
+  // difficulty
+  difficultySelect.addEventListener('change', (e) => { state.difficulty = e.target.value; aiLabel.textContent = state.difficulty; });
+
+  // initial start menu
+  startButtons.forEach(b => b.addEventListener('click', (ev) => {
+    const d = ev.target.getAttribute('data-diff');
+    state.difficulty = d; difficultySelect.value = d;
+    startMenu.style.display = 'none';
+    messageEl.textContent = `Difficulty: ${d.toUpperCase()} — play!`;
+    aiLabel.textContent = d;
+    // small theme adjustment
+    applyTheme(state.theme);
+  }));
+
+  // overlay actions
+  playAgainBtn.addEventListener('click', ()=>{
+    // reset match and hide overlay
+    state.you = 0; state.bot = 0; state.rounds = 0; state.combo = 0; state.history = [];
+    updateUI();
+    hideOverlay();
+    messageEl.textContent = 'New match — go!';
+  });
+  closeOverlayBtn.addEventListener('click', hideOverlay);
+
+  // Reset match / all
+  resetMatchBtn.addEventListener('click', ()=> {
+    state.you = 0; state.bot = 0; state.rounds = 0; state.combo = 0; updateUI(); messageEl.textContent = 'Match reset';
+    cancelConfetti();
+  });
+  resetAllBtn.addEventListener('click', ()=> {
+    if(!confirm('Reset all settings and match?')) return;
+    applyTheme('neon'); themeSelect.value = 'neon';
+    state.you = 0; state.bot = 0; state.rounds = 0; state.combo = 0; state.history = []; state.mode = 'bestof5'; state.difficulty = 'normal'; difficultySelect.value = 'normal';
+    state.music = false; setMusic(false);
+    updateUI(); messageEl.textContent = 'All reset';
+    cancelConfetti();
+  });
+
+  // Music toggle
+  function setMusic(on){ state.music = !!on; if(state.music) s_bg.play().catch(()=>{}); else s_bg.pause(); localStorage.setItem('rps_music', JSON.stringify(state.music)); musicToggle.textContent = state.music ? '🔇' : '🔊'; }
+  musicToggle.addEventListener('click', ()=> setMusic(!state.music));
+  // apply saved music
+  if(JSON.parse(localStorage.getItem('rps_music')||'false')) setMusic(true);
+
+  // update UI helper
+  function updateUI(){ youScoreEl.textContent = state.you; botScoreEl.textContent = state.bot; roundsEl.textContent = state.rounds; comboText.textContent = state.combo >= 3 ? `🔥 ${state.combo}-Win Streak` : ''; }
+
+  // set initial theme from storage
+  const storedTheme = localStorage.getItem('rps_theme');
+  if(storedTheme) { state.theme = storedTheme; applyTheme(storedTheme); themeSelect.value = storedTheme; }
+
+  // helper to set music safely
+  function setMusicSafe(val){ try { setMusic(val); } catch(e) {} }
+
+  // small helper to play sound
+  function play(audio) { try{ audio.currentTime = 0; audio.play().catch(()=>{}); }catch(e){} }
+
+  // small initial update
+  updateUI();
+
+  // expose minimal console helpers for testing (optional)
+  window._rpsState = state;
+  window._launchConfetti = launchConfetti;
+})();
+</script>
+</body>
+</html>
